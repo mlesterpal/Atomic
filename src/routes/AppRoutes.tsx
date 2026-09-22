@@ -1,9 +1,12 @@
 import { Routes, Route } from "react-router-dom";
-import App from "../App";
+import HomePage from "../pages/HomePage";
+import ReadingPage from "../components/ReadingPage";
+
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<App />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/reading" element={<ReadingPage />} />
     </Routes>
   );
 };
