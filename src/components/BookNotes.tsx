@@ -6,13 +6,14 @@ import {
   Heading,
   HStack,
   Icon,
+  IconButton,
   Input,
   Stack,
   Text,
   Textarea,
   VStack,
 } from "@chakra-ui/react"
-import { LuBookOpen, LuQuote, LuStar } from "react-icons/lu"
+import { LuBookOpen, LuEllipsisVertical, LuQuote, LuStar } from "react-icons/lu"
 import { useEffect, useMemo, useState, type ElementType } from "react"
 
 export type BookNotesBook = {
@@ -121,6 +122,7 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
 
   const [isUpdatePageOpen, setIsUpdatePageOpen] = useState(false)
   const [isAddLineOpen, setIsAddLineOpen] = useState(false)
+  const [openQuoteMenuId, setOpenQuoteMenuId] = useState<string | null>(null)
 
   const [draftPageRead, setDraftPageRead] = useState(() => formatNumberOrEmpty(lastPageRead))
 
@@ -210,9 +212,23 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
             </Text>
           </Box>
         ) : (
-          <VStack align="stretch" gap={3} mt={4}>
+          <VStack
+            align="stretch"
+            gap={3}
+            mt={4}
+            onMouseDown={() => {
+              setOpenQuoteMenuId(null)
+            }}
+          >
             {favoriteLines.map((q) => (
-              <Box key={q.id} borderWidth="1px" borderRadius="xl" p={4} bg="bg.muted">
+              <Box
+                key={q.id}
+                borderWidth="1px"
+                borderRadius="xl"
+                p={4}
+                bg="bg.muted"
+                position="relative"
+              >
                 <Flex justify="space-between" align="center" gap={4}>
                   <HStack gap={2} minW={0}>
                     {q.favorite && <Icon as={LuStar} boxSize={4} color="yellow.400" />}
@@ -221,6 +237,63 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
                     </Text>
                   </HStack>
                 </Flex>
+
+                <Box position="absolute" top={2} right={2} onMouseDown={(e) => e.stopPropagation()}>
+                  <IconButton
+                    aria-label="Quote actions"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setOpenQuoteMenuId((prev) => (prev === q.id ? null : q.id))
+                    }}
+                    color="fg.muted"
+                  >
+                    <Icon as={LuEllipsisVertical} boxSize={4} />
+                  </IconButton>
+
+                  {openQuoteMenuId === q.id && (
+                    <Box
+                      position="absolute"
+                      top="9"
+                      right="0"
+                      minW="40"
+                      borderWidth="1px"
+                      borderRadius="xl"
+                      bg="bg.panel"
+                      p={2}
+                      boxShadow="lg"
+                      zIndex="popover"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <Stack gap={1}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          justifyContent="flex-start"
+                          onClick={() => {
+                            setFavoriteLines((prev) => prev.filter((x) => x.id !== q.id))
+                            setOpenQuoteMenuId(null)
+                          }}
+                        >
+                          Delete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          justifyContent="flex-start"
+                          onClick={() => {
+                            setFavoriteLines((prev) =>
+                              prev.map((x) => (x.id === q.id ? { ...x, favorite: !x.favorite } : x))
+                            )
+                            setOpenQuoteMenuId(null)
+                          }}
+                        >
+                          {q.favorite ? "Unmark favorite" : "Mark as favorite"}
+                        </Button>
+                      </Stack>
+                    </Box>
+                  )}
+                </Box>
 
                 <Text mt={3} fontSize="md" lineHeight="tall">
                   “{q.text}”
