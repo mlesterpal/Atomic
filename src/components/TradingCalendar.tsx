@@ -1,10 +1,10 @@
 import { Box, Flex, HStack, Icon, Text, VStack } from "@chakra-ui/react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { LuCheck } from "react-icons/lu"
 import { Tooltip } from "./ui/tooltip"
 import { useColorModeValue } from "./ui/color-mode"
 
-type TradingData = Record<string, boolean> // YYYY-MM-DD -> traded?
+export type TradingData = Record<string, boolean> // YYYY-MM-DD -> traded?
 
 const pad2 = (n: number) => String(n).padStart(2, "0")
 
@@ -61,9 +61,10 @@ const defaultDemoTrading = (days: Date[]) => {
 export type TradingCalendarProps = {
   year?: number
   data?: TradingData
+  onChange?: (next: TradingData) => void
 }
 
-const TradingCalendar = ({ year, data }: TradingCalendarProps) => {
+const TradingCalendar = ({ year, data, onChange }: TradingCalendarProps) => {
   const targetYear = useMemo(() => year ?? new Date().getFullYear(), [year])
 
   const yearStart = useMemo(() => {
@@ -103,18 +104,28 @@ const TradingCalendar = ({ year, data }: TradingCalendarProps) => {
   // local interactive preview state (can be replaced with persistence later)
   const [tradedByDate, setTradedByDate] = useState<TradingData>(() => {
     const base = data ?? defaultDemoTrading(allDays)
-    // sample checkmarks so the layout isn’t empty
-    const yyyy = targetYear
-    return {
-      ...base,
-      [`${yyyy}-01-03`]: true,
-      [`${yyyy}-02-14`]: true,
-      [`${yyyy}-04-08`]: true,
-      [`${yyyy}-06-21`]: true,
-      [`${yyyy}-09-23`]: true,
-      [`${yyyy}-12-10`]: true,
-    }
+    return base
   })
+
+  useEffect(() => {
+    if (!data) return
+    setTradedByDate((prev) => {
+      // only update if actually different to avoid rerender loops
+      const prevKeys = Object.keys(prev)
+      const nextKeys = Object.keys(data)
+      if (prevKeys.length === nextKeys.length) {
+        let same = true
+        for (const k of nextKeys) {
+          if (prev[k] !== data[k]) {
+            same = false
+            break
+          }
+        }
+        if (same) return prev
+      }
+      return data
+    })
+  }, [data])
 
   const monthLabels = useMemo(() => {
     const labels: { idx: number; text: string }[] = []
@@ -257,7 +268,11 @@ const TradingCalendar = ({ year, data }: TradingCalendarProps) => {
                             tabIndex={isInYear ? 0 : -1}
                             onClick={() => {
                               if (!isInYear) return
-                              setTradedByDate((prev) => ({ ...prev, [key]: !(prev[key] ?? false) }))
+                              setTradedByDate((prev) => {
+                                const next = { ...prev, [key]: !(prev[key] ?? false) }
+                                onChange?.(next)
+                                return next
+                              })
                             }}
                             boxSize={cellSize}
                             borderRadius="sm"
