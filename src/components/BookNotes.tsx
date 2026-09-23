@@ -33,6 +33,10 @@ type BookNotesProps = {
   book?: BookNotesBook
   lastPageRead?: number
   quotes?: BookNotesQuote[]
+  onUpdateLastPageRead?: (value?: number) => void
+  onAddQuote?: (quote: BookNotesQuote) => void
+  onDeleteQuote?: (quoteId: string) => void
+  onToggleQuoteFavorite?: (quoteId: string, favorite: boolean) => void
 }
 
 const formatNumberOrEmpty = (n: number | undefined) => (typeof n === "number" ? `${n}` : "")
@@ -94,7 +98,15 @@ const StatCard = ({
   )
 }
 
-const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
+const BookNotes = ({
+  book,
+  lastPageRead,
+  quotes = [],
+  onUpdateLastPageRead,
+  onAddQuote,
+  onDeleteQuote,
+  onToggleQuoteFavorite,
+}: BookNotesProps) => {
   if (!book) {
     return (
       <Box borderWidth="1px" borderRadius="2xl" bg="bg.panel" p={6}>
@@ -272,6 +284,7 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
                           justifyContent="flex-start"
                           onClick={() => {
                             setFavoriteLines((prev) => prev.filter((x) => x.id !== q.id))
+                            onDeleteQuote?.(q.id)
                             setOpenQuoteMenuId(null)
                           }}
                         >
@@ -282,9 +295,13 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
                           variant="ghost"
                           justifyContent="flex-start"
                           onClick={() => {
+                            const nextFavorite = !q.favorite
                             setFavoriteLines((prev) =>
-                              prev.map((x) => (x.id === q.id ? { ...x, favorite: !x.favorite } : x))
+                              prev.map((x) =>
+                                x.id === q.id ? { ...x, favorite: nextFavorite } : x
+                              )
                             )
+                            onToggleQuoteFavorite?.(q.id, nextFavorite)
                             setOpenQuoteMenuId(null)
                           }}
                         >
@@ -364,12 +381,15 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
                   const raw = draftPageRead.trim()
                   if (!raw) {
                     setPageRead(undefined)
+                    onUpdateLastPageRead?.(undefined)
                     closeUpdatePage()
                     return
                   }
                   const n = Number(raw)
                   if (!Number.isFinite(n) || n <= 0) return
-                  setPageRead(Math.floor(n))
+                  const next = Math.floor(n)
+                  setPageRead(next)
+                  onUpdateLastPageRead?.(next)
                   closeUpdatePage()
                 }}
               >
@@ -460,15 +480,15 @@ const BookNotes = ({ book, lastPageRead, quotes = [] }: BookNotesProps) => {
                   const page = pageRaw ? Number(pageRaw) : undefined
                   if (pageRaw && (!Number.isFinite(page) || (page ?? 0) <= 0)) return
 
-                  setFavoriteLines((prev) => [
-                    {
-                      id: `line-${Date.now()}`,
-                      text,
-                      page: typeof page === "number" ? Math.floor(page) : undefined,
-                      favorite: true,
-                    },
-                    ...prev,
-                  ])
+                  const quote: BookNotesQuote = {
+                    id: `line-${Date.now()}`,
+                    text,
+                    page: typeof page === "number" ? Math.floor(page) : undefined,
+                    favorite: true,
+                  }
+
+                  setFavoriteLines((prev) => [quote, ...prev])
+                  onAddQuote?.(quote)
                   closeAddLine()
                 }}
                 disabled={!draftLineText.trim()}
