@@ -5,7 +5,10 @@ import PageHeading from "../components/PageHeading"
 const HomePage = () => {
   return (
     <Box maxW="5xl" mx="auto" px={{ base: 5, md: 8 }} py={{ base: 8, md: 12 }}>
-      <PageHeading title="Habits" />
+      <PageHeading
+        title="Habits"
+        description="Small actions, repeated every day."
+      />
       <HabitCards />
     </Box>
   )
