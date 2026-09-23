@@ -1,5 +1,5 @@
 import { Box, Grid, Icon, Text } from "@chakra-ui/react"
-import { FaBook } from "react-icons/fa"
+import { FaBook, FaCode } from "react-icons/fa"
 import { LuChevronRight } from "react-icons/lu"
 import { Link } from "react-router-dom"
 
@@ -12,6 +12,13 @@ const HabitCards = () => {
       icon: FaBook,
       link: "/reading",
     },
+    {
+      id: 2,
+      name: "Development",
+      description: "Code you’re building a habit around.",
+      icon: FaCode,
+      link: "/development",
+    }
   ]
   return (
     <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={4}>
