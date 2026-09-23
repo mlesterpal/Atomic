@@ -6,11 +6,12 @@ import {
   Flex,
   Grid,
   Heading,
+  HStack,
   Input,
   Stack,
   Text,
 } from "@chakra-ui/react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import PageHeading from "../components/PageHeading"
 
 type ExerciseCategory = "Running" | "Bike" | "Lifting" | "Basketball"
@@ -19,13 +20,22 @@ type ExerciseRecord = {
   id: string
   dateISO: string // YYYY-MM-DD
   category: ExerciseCategory
-  primaryLabel: string // Steps / KM
-  primaryValue: string // 6,200 / 12.4
-  timeLabel: string // Time
-  timeValue: string // 32m
+  primaryLabel: string // Steps / KM / Body parts / Shots made
+  primaryValue: string
+  secondaryLabel: string // Time / Weight
+  secondaryValue: string
 }
 
 const categoryChips: ExerciseCategory[] = ["Running", "Bike", "Lifting", "Basketball"]
+
+const pad2 = (n: number) => String(n).padStart(2, "0")
+
+const toISODate = (d: Date) => {
+  const yyyy = d.getFullYear()
+  const mm = pad2(d.getMonth() + 1)
+  const dd = pad2(d.getDate())
+  return `${yyyy}-${mm}-${dd}`
+}
 
 const formatDateHeading = (iso: string) => {
   const d = new Date(`${iso}T00:00:00`)
@@ -35,72 +45,83 @@ const formatDateHeading = (iso: string) => {
   }).format(d)
 }
 
+const labelsForCategory = (category: ExerciseCategory) => {
+  switch (category) {
+    case "Running":
+      return { primaryLabel: "Steps", secondaryLabel: "Time" }
+    case "Bike":
+      return { primaryLabel: "KM", secondaryLabel: "Time" }
+    case "Lifting":
+      return { primaryLabel: "Body parts", secondaryLabel: "Weight" }
+    case "Basketball":
+      return { primaryLabel: "Shots made", secondaryLabel: "Time" }
+  }
+}
+
+const initialRecords: ExerciseRecord[] = [
+  // Sep 23
+  {
+    id: "2026-09-23-running",
+    dateISO: "2026-09-23",
+    category: "Running",
+    primaryLabel: "Steps",
+    primaryValue: "6,200",
+    secondaryLabel: "Time",
+    secondaryValue: "32m",
+  },
+  {
+    id: "2026-09-23-bike",
+    dateISO: "2026-09-23",
+    category: "Bike",
+    primaryLabel: "KM",
+    primaryValue: "12.4",
+    secondaryLabel: "Time",
+    secondaryValue: "41m",
+  },
+
+  // Sep 22
+  {
+    id: "2026-09-22-running",
+    dateISO: "2026-09-22",
+    category: "Running",
+    primaryLabel: "Steps",
+    primaryValue: "5,100",
+    secondaryLabel: "Time",
+    secondaryValue: "26m",
+  },
+  {
+    id: "2026-09-22-bike",
+    dateISO: "2026-09-22",
+    category: "Bike",
+    primaryLabel: "KM",
+    primaryValue: "8.6",
+    secondaryLabel: "Time",
+    secondaryValue: "29m",
+  },
+
+  // Sep 21
+  {
+    id: "2026-09-21-running",
+    dateISO: "2026-09-21",
+    category: "Running",
+    primaryLabel: "Steps",
+    primaryValue: "7,430",
+    secondaryLabel: "Time",
+    secondaryValue: "38m",
+  },
+  {
+    id: "2026-09-21-bike",
+    dateISO: "2026-09-21",
+    category: "Bike",
+    primaryLabel: "KM",
+    primaryValue: "10.1",
+    secondaryLabel: "Time",
+    secondaryValue: "35m",
+  },
+]
+
 const ExercisePage = () => {
-  // Static/sample data for layout preview
-  const records: ExerciseRecord[] = useMemo(
-    () => [
-      // Sep 23
-      {
-        id: "2026-09-23-running",
-        dateISO: "2026-09-23",
-        category: "Running",
-        primaryLabel: "Steps",
-        primaryValue: "6,200",
-        timeLabel: "Time",
-        timeValue: "32m",
-      },
-      {
-        id: "2026-09-23-bike",
-        dateISO: "2026-09-23",
-        category: "Bike",
-        primaryLabel: "KM",
-        primaryValue: "12.4",
-        timeLabel: "Time",
-        timeValue: "41m",
-      },
-
-      // Sep 22
-      {
-        id: "2026-09-22-running",
-        dateISO: "2026-09-22",
-        category: "Running",
-        primaryLabel: "Steps",
-        primaryValue: "5,100",
-        timeLabel: "Time",
-        timeValue: "26m",
-      },
-      {
-        id: "2026-09-22-bike",
-        dateISO: "2026-09-22",
-        category: "Bike",
-        primaryLabel: "KM",
-        primaryValue: "8.6",
-        timeLabel: "Time",
-        timeValue: "29m",
-      },
-
-      // Sep 21
-      {
-        id: "2026-09-21-running",
-        dateISO: "2026-09-21",
-        category: "Running",
-        primaryLabel: "Steps",
-        primaryValue: "7,430",
-        timeLabel: "Time",
-        timeValue: "38m",
-      },
-      {
-        id: "2026-09-21-bike",
-        dateISO: "2026-09-21",
-        category: "Bike",
-        primaryLabel: "KM",
-        primaryValue: "10.1",
-        timeLabel: "Time",
-        timeValue: "35m",
-      },
-    ],
-    []
-  )
+  const [records, setRecords] = useState<ExerciseRecord[]>(() => initialRecords)
 
   const mostRecent3Days = useMemo(() => {
     const unique = Array.from(new Set(records.map((r) => r.dateISO))).sort((a, b) =>
@@ -111,6 +132,33 @@ const ExercisePage = () => {
 
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | "All">("All")
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [draftDateISO, setDraftDateISO] = useState(() => toISODate(new Date()))
+  const [draftCategory, setDraftCategory] = useState<ExerciseCategory>("Running")
+  const [draftPrimaryValue, setDraftPrimaryValue] = useState("")
+  const [draftSecondaryValue, setDraftSecondaryValue] = useState("")
+
+  const draftLabels = useMemo(() => labelsForCategory(draftCategory), [draftCategory])
+
+  const openCreate = () => {
+    setDraftDateISO(toISODate(new Date()))
+    setDraftCategory("Running")
+    setDraftPrimaryValue("")
+    setDraftSecondaryValue("")
+    setIsCreateOpen(true)
+  }
+
+  const closeCreate = () => setIsCreateOpen(false)
+
+  useEffect(() => {
+    if (!isCreateOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeCreate()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [isCreateOpen])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -123,7 +171,7 @@ const ExercisePage = () => {
           r.category.toLowerCase().includes(q) ||
           r.primaryLabel.toLowerCase().includes(q) ||
           r.primaryValue.toLowerCase().includes(q) ||
-          r.timeValue.toLowerCase().includes(q)
+          r.secondaryValue.toLowerCase().includes(q)
         )
       })
   }, [mostRecent3Days, query, records, selectedCategory])
@@ -181,11 +229,158 @@ const ExercisePage = () => {
             ))}
           </ButtonGroup>
 
-          <Text color="fg.muted" fontSize="sm">
-            {filtered.length} record{filtered.length === 1 ? "" : "s"}
-          </Text>
+          <HStack gap={3}>
+            <Text color="fg.muted" fontSize="sm">
+              {filtered.length} record{filtered.length === 1 ? "" : "s"}
+            </Text>
+            <Button size="sm" onClick={openCreate}>
+              Add record
+            </Button>
+          </HStack>
         </Flex>
       </Stack>
+
+      {isCreateOpen && (
+        <Box
+          position="fixed"
+          inset="0"
+          zIndex="overlay"
+          bg="blackAlpha.600"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          p={4}
+          onMouseDown={(e) => {
+            if (e.currentTarget === e.target) closeCreate()
+          }}
+        >
+          <Box
+            role="dialog"
+            aria-modal="true"
+            w="full"
+            maxW="lg"
+            borderWidth="1px"
+            borderRadius="2xl"
+            bg="bg.panel"
+            p={6}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Flex justify="space-between" align="center" gap={4}>
+              <Heading size="md" letterSpacing="-0.02em">
+                New record
+              </Heading>
+              <Button variant="ghost" onClick={closeCreate}>
+                Close
+              </Button>
+            </Flex>
+
+            <Stack gap={4} mt={5}>
+              <Box>
+                <Text color="fg.muted" fontSize="xs" fontWeight="medium" letterSpacing="0.08em">
+                  DATE
+                </Text>
+                <Input
+                  mt={2}
+                  type="date"
+                  value={draftDateISO}
+                  onChange={(e) => setDraftDateISO(e.target.value)}
+                  bg="bg.muted"
+                  borderRadius="xl"
+                />
+              </Box>
+
+              <Box>
+                <Text color="fg.muted" fontSize="xs" fontWeight="medium" letterSpacing="0.08em">
+                  CATEGORY
+                </Text>
+                <ButtonGroup mt={2} size="sm" variant="outline" flexWrap="wrap" gap={2}>
+                  {categoryChips.map((c) => (
+                    <Button
+                      key={c}
+                      onClick={() => setDraftCategory(c)}
+                      bg={draftCategory === c ? "bg.muted" : "transparent"}
+                      borderColor={draftCategory === c ? "fg.muted" : undefined}
+                    >
+                      {c}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </Box>
+
+              <Box>
+                <Text color="fg.muted" fontSize="xs" fontWeight="medium" letterSpacing="0.08em">
+                  {draftLabels.primaryLabel.toUpperCase()}
+                </Text>
+                <Input
+                  mt={2}
+                  value={draftPrimaryValue}
+                  onChange={(e) => setDraftPrimaryValue(e.target.value)}
+                  placeholder={
+                    draftCategory === "Running"
+                      ? "e.g. 6200"
+                      : draftCategory === "Bike"
+                        ? "e.g. 12.4"
+                        : draftCategory === "Lifting"
+                          ? "e.g. Chest / Back"
+                          : "e.g. 45"
+                  }
+                  bg="bg.muted"
+                  borderRadius="xl"
+                />
+              </Box>
+
+              <Box>
+                <Text color="fg.muted" fontSize="xs" fontWeight="medium" letterSpacing="0.08em">
+                  {draftLabels.secondaryLabel.toUpperCase()}
+                </Text>
+                <Input
+                  mt={2}
+                  value={draftSecondaryValue}
+                  onChange={(e) => setDraftSecondaryValue(e.target.value)}
+                  placeholder={draftCategory === "Lifting" ? "e.g. 60kg" : "e.g. 32m"}
+                  bg="bg.muted"
+                  borderRadius="xl"
+                />
+              </Box>
+            </Stack>
+
+            <Flex mt={6} justify="flex-end" gap={3} flexWrap="wrap">
+              <Button variant="outline" onClick={closeCreate}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const dateISO = draftDateISO.trim()
+                  const primaryValue = draftPrimaryValue.trim()
+                  const secondaryValue = draftSecondaryValue.trim()
+                  if (!dateISO || !primaryValue || !secondaryValue) return
+
+                  const { primaryLabel, secondaryLabel } = labelsForCategory(draftCategory)
+                  const id = `${dateISO}-${draftCategory.toLowerCase()}-${Date.now()}`
+                  setRecords((prev) => [
+                    {
+                      id,
+                      dateISO,
+                      category: draftCategory,
+                      primaryLabel,
+                      primaryValue,
+                      secondaryLabel,
+                      secondaryValue,
+                    },
+                    ...prev,
+                  ])
+                  closeCreate()
+                }}
+                disabled={
+                  !draftDateISO.trim() || !draftPrimaryValue.trim() || !draftSecondaryValue.trim()
+                }
+              >
+                Create record
+              </Button>
+            </Flex>
+          </Box>
+        </Box>
+      )}
 
       <Stack gap={6}>
         {grouped.length === 0 ? (
@@ -256,10 +451,10 @@ const ExercisePage = () => {
 
                       <Box textAlign={{ base: "left", sm: "right" }}>
                         <Text color="fg.muted" fontSize="xs" fontWeight="medium" letterSpacing="0.08em">
-                          {r.timeLabel.toUpperCase()}
+                          {r.secondaryLabel.toUpperCase()}
                         </Text>
                         <Text fontSize="2xl" fontWeight="semibold" letterSpacing="-0.03em" mt={1}>
-                          {r.timeValue}
+                          {r.secondaryValue}
                         </Text>
                       </Box>
                     </Flex>
