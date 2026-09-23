@@ -1,5 +1,5 @@
 import { Box, Grid, Icon, Text } from "@chakra-ui/react"
-import { FaBook, FaCode, FaRunning, FaGem } from "react-icons/fa"
+import { FaBook, FaCode, FaRunning, FaGem, FaChartLine } from "react-icons/fa"
 import { LuChevronRight } from "react-icons/lu"
 import { Link } from "react-router-dom"
 
@@ -32,6 +32,13 @@ const HabitCards = () => {
       description: "Spiritual practices you’re building a habit around.",
       icon: FaGem,
       link: "/spiritual",
+    },
+    {
+      id: 5,
+      name: "Trading",
+      description: "Trading you’re building a habit around.",
+      icon: FaChartLine,
+      link: "/trading",
     }
   ]
   return (
