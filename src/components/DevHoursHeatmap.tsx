@@ -118,6 +118,7 @@ const DevHoursHeatmap = ({ year, data }: DevHoursHeatmapProps) => {
   const hoursByDate = useMemo(() => data ?? defaultDemoHours(allDays), [allDays, data])
 
   const emptyColor = useColorModeValue("gray.200", "whiteAlpha.200")
+  const cellBorderColor = useColorModeValue("blackAlpha.50", "whiteAlpha.100")
   const palette = useColorModeValue(
     [emptyColor, "green.100", "green.200", "green.300", "green.400"],
     [emptyColor, "green.900", "green.800", "green.700", "green.600"],
@@ -240,7 +241,7 @@ const DevHoursHeatmap = ({ year, data }: DevHoursHeatmapProps) => {
                             bg={palette[level]}
                             opacity={isInYear ? 1 : 0.35}
                             borderWidth="1px"
-                            borderColor={useColorModeValue("blackAlpha.50", "whiteAlpha.100")}
+                            borderColor={cellBorderColor}
                           />
                         </Tooltip>
                       )
