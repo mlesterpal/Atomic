@@ -141,7 +141,22 @@ const ReadingPage = () => {
         </Box>
       )}
 
-      <BookList books={books} />
+      <BookList
+        books={books}
+        onDeleteBook={(bookId) => {
+          const nextBooks = books.filter((b) => b.id !== bookId)
+          const { [bookId]: _removed, ...restNotes } = readingState.notesById
+          const nextState: ReadingState = { books: nextBooks, notesById: restNotes }
+          setReadingState(nextState)
+          saveReadingState(nextState)
+        }}
+        onToggleFinished={(bookId, finished) => {
+          const nextBooks = books.map((b) => (b.id === bookId ? { ...b, finished } : b))
+          const nextState: ReadingState = { ...readingState, books: nextBooks }
+          setReadingState(nextState)
+          saveReadingState(nextState)
+        }}
+      />
     </Box>
   )
 }

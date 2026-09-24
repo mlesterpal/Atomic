@@ -7,12 +7,16 @@ import {
   Grid,
   Heading,
   HStack,
+  Icon,
+  IconButton,
   Input,
   Stack,
   Text,
 } from "@chakra-ui/react"
 import { useEffect, useMemo, useState } from "react"
+import { FaEllipsisH } from "react-icons/fa"
 import PageHeading from "../components/PageHeading"
+import BestExerciseRecord from "../components/BestExerciseRecord"
 
 type ExerciseCategory = "Running" | "Bike" | "Lifting" | "Basketball"
 
@@ -133,7 +137,9 @@ const ExercisePage = () => {
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | "All">("All")
 
+  const [openRecordMenuId, setOpenRecordMenuId] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [draftDateISO, setDraftDateISO] = useState(() => toISODate(new Date()))
   const [draftCategory, setDraftCategory] = useState<ExerciseCategory>("Running")
   const [draftPrimaryValue, setDraftPrimaryValue] = useState("")
@@ -142,10 +148,20 @@ const ExercisePage = () => {
   const draftLabels = useMemo(() => labelsForCategory(draftCategory), [draftCategory])
 
   const openCreate = () => {
+    setEditingRecordId(null)
     setDraftDateISO(toISODate(new Date()))
     setDraftCategory("Running")
     setDraftPrimaryValue("")
     setDraftSecondaryValue("")
+    setIsCreateOpen(true)
+  }
+
+  const openEdit = (r: ExerciseRecord) => {
+    setEditingRecordId(r.id)
+    setDraftDateISO(r.dateISO)
+    setDraftCategory(r.category)
+    setDraftPrimaryValue(r.primaryValue)
+    setDraftSecondaryValue(r.secondaryValue)
     setIsCreateOpen(true)
   }
 
@@ -267,7 +283,7 @@ const ExercisePage = () => {
           >
             <Flex justify="space-between" align="center" gap={4}>
               <Heading size="md" letterSpacing="-0.02em">
-                New record
+                {editingRecordId ? "Edit record" : "New record"}
               </Heading>
               <Button variant="ghost" onClick={closeCreate}>
                 Close
@@ -356,33 +372,55 @@ const ExercisePage = () => {
                   if (!dateISO || !primaryValue || !secondaryValue) return
 
                   const { primaryLabel, secondaryLabel } = labelsForCategory(draftCategory)
-                  const id = `${dateISO}-${draftCategory.toLowerCase()}-${Date.now()}`
-                  setRecords((prev) => [
-                    {
-                      id,
-                      dateISO,
-                      category: draftCategory,
-                      primaryLabel,
-                      primaryValue,
-                      secondaryLabel,
-                      secondaryValue,
-                    },
-                    ...prev,
-                  ])
+                  setRecords((prev) => {
+                    if (editingRecordId) {
+                      return prev.map((x) =>
+                        x.id === editingRecordId
+                          ? {
+                              ...x,
+                              dateISO,
+                              category: draftCategory,
+                              primaryLabel,
+                              primaryValue,
+                              secondaryLabel,
+                              secondaryValue,
+                            }
+                          : x
+                      )
+                    }
+
+                    const id = `${dateISO}-${draftCategory.toLowerCase()}-${Date.now()}`
+                    return [
+                      {
+                        id,
+                        dateISO,
+                        category: draftCategory,
+                        primaryLabel,
+                        primaryValue,
+                        secondaryLabel,
+                        secondaryValue,
+                      },
+                      ...prev,
+                    ]
+                  })
                   closeCreate()
                 }}
                 disabled={
                   !draftDateISO.trim() || !draftPrimaryValue.trim() || !draftSecondaryValue.trim()
                 }
               >
-                Create record
+                {editingRecordId ? "Save changes" : "Create record"}
               </Button>
             </Flex>
           </Box>
         </Box>
       )}
 
-      <Stack gap={6}>
+      <Box mb={6}>
+        <BestExerciseRecord />
+      </Box>
+
+      <Stack gap={6} onMouseDown={() => setOpenRecordMenuId(null)}>
         {grouped.length === 0 ? (
           <Box borderWidth="1px" borderRadius="2xl" bg="bg.panel" p={6}>
             <Heading size="md" letterSpacing="-0.02em">
@@ -420,17 +458,68 @@ const ExercisePage = () => {
                     }}
                   >
                     <Flex justify="space-between" align="start" gap={4}>
-                      <Box minW={0}>
-                        <Text fontWeight="semibold" fontSize="lg" letterSpacing="-0.02em">
-                          {r.category}
-                        </Text>
-                        <Text color="fg.muted" fontSize="sm" mt={1}>
-                          Type of exercise
-                        </Text>
-                      </Box>
                       <Badge variant="subtle" borderRadius="md" px={2} py={1}>
                         {r.category}
                       </Badge>
+
+                      <Box position="relative" onMouseDown={(e) => e.stopPropagation()}>
+                        <IconButton
+                          aria-label="Record actions"
+                          variant="ghost"
+                          size="sm"
+                          color="fg.muted"
+                          onClick={() => setOpenRecordMenuId((prev) => (prev === r.id ? null : r.id))}
+                        >
+                          <Icon as={FaEllipsisH} boxSize={4} />
+                        </IconButton>
+
+                        {openRecordMenuId === r.id && (
+                          <Box
+                            position="absolute"
+                            top="9"
+                            right="0"
+                            minW="40"
+                            borderWidth="1px"
+                            borderRadius="xl"
+                            bg="bg.panel"
+                            p={2}
+                            boxShadow="lg"
+                            zIndex="popover"
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <Stack gap={1}>
+                              <Box
+                                as="button"
+                                onClick={() => {
+                                  openEdit(r)
+                                  setOpenRecordMenuId(null)
+                                }}
+                                textAlign="left"
+                                borderRadius="md"
+                                _hover={{ bg: "bg.muted" }}
+                                px={2}
+                                py={2}
+                              >
+                                <Text>Edit</Text>
+                              </Box>
+                              <Box
+                                as="button"
+                                onClick={() => {
+                                  setRecords((prev) => prev.filter((x) => x.id !== r.id))
+                                  setOpenRecordMenuId(null)
+                                }}
+                                textAlign="left"
+                                borderRadius="md"
+                                _hover={{ bg: "bg.muted" }}
+                                px={2}
+                                py={2}
+                              >
+                                <Text>Delete</Text>
+                              </Box>
+                            </Stack>
+                          </Box>
+                        )}
+                      </Box>
                     </Flex>
 
                     <Flex
