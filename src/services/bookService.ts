@@ -51,3 +51,7 @@ export const addFavoriteLine = async (
   await axiosInstance.post(`/books/addfavoriteline/${bookId}`, payload)
 }
 
+export const deleteFavoriteLine = async (favoriteLineId: number): Promise<void> => {
+  await axiosInstance.delete(`/books/deletefavoriteline/${favoriteLineId}`)
+}
+

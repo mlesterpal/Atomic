@@ -15,7 +15,7 @@ import {
 } from "@chakra-ui/react"
 import { LuBookOpen, LuEllipsisVertical, LuQuote, LuStar } from "react-icons/lu"
 import { useEffect, useMemo, useState, type ElementType } from "react"
-import { useAddFavoriteLine, useGetAllFavoriteLines } from "../hooks/bookRepository"
+import { useAddFavoriteLine, useDeleteFavoriteLine, useGetAllFavoriteLines } from "../hooks/bookRepository"
 
 export type BookNotesBook = {
   id: number
@@ -112,6 +112,7 @@ const BookNotes = ({
 
   const favoriteLinesQuery = useGetAllFavoriteLines(book.id)
   const addFavoriteLineMutation = useAddFavoriteLine(book.id)
+  const deleteFavoriteLineMutation = useDeleteFavoriteLine(book.id)
   const apiQuotes = useMemo<BookNotesQuote[]>(() => {
     const lines = favoriteLinesQuery.data
     if (!lines) return []
@@ -285,8 +286,10 @@ const BookNotes = ({
                           size="sm"
                           variant="ghost"
                           justifyContent="flex-start"
-                          onClick={() => {
-                            setFavoriteLines((prev) => prev.filter((x) => x.id !== q.id))
+                          onClick={async () => {
+                            const id = Number(q.id)
+                            if (!Number.isFinite(id)) return
+                            await deleteFavoriteLineMutation.mutateAsync(id)
                             setOpenQuoteMenuId(null)
                           }}
                         >

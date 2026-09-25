@@ -3,6 +3,7 @@ import {
   addNewBook,
   addFavoriteLine,
   deleteBook,
+  deleteFavoriteLine,
   getAllFavoriteLines,
   getAllBooks,
   updateBook,
@@ -60,6 +61,16 @@ export const useAddFavoriteLine = (bookId: number) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: AddBookFavoriteLineRequest) => addFavoriteLine(bookId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["books", bookId, "favoriteLines"] })
+    },
+  })
+}
+
+export const useDeleteFavoriteLine = (bookId: number) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (favoriteLineId: number) => deleteFavoriteLine(favoriteLineId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["books", bookId, "favoriteLines"] })
     },
