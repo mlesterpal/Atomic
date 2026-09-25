@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState, type ElementType } from "react"
 export type BookNotesBook = {
   id: number
   title: string
-  author: string
+  author: string | null
 }
 
 export type BookNotesQuote = {

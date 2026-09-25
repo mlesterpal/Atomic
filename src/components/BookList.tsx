@@ -6,8 +6,8 @@ import { Link } from "react-router-dom"
 export type BookListBook = {
   id: number
   title: string
-  author: string
-  finished?: boolean
+  author: string | null
+  isFinished?: boolean
 }
 
 type BookListProps = {
@@ -15,7 +15,7 @@ type BookListProps = {
   basePath?: string
   templateColumns?: GridProps["templateColumns"]
   onDeleteBook?: (bookId: number) => void
-  onToggleFinished?: (bookId: number, finished: boolean) => void
+  onToggleFinished?: (args: { bookId: number; isFinished: boolean }) => void
 }
 
 const BookList = ({
@@ -39,9 +39,9 @@ const BookList = ({
           p={5}
           borderWidth="1px"
           borderRadius="xl"
-          bg={book.finished ? "bg.muted" : "bg.panel"}
-          opacity={book.finished ? 0.85 : 1}
-          borderColor={book.finished ? "green.400" : undefined}
+          bg={book.isFinished ? "bg.muted" : "bg.panel"}
+          opacity={book.isFinished ? 0.85 : 1}
+          borderColor={book.isFinished ? "green.400" : undefined}
           transition="border-color 0.15s ease, transform 0.15s ease"
           _hover={{
             borderColor: "fg.muted",
@@ -60,16 +60,16 @@ const BookList = ({
                   fontWeight="semibold"
                   fontSize="lg"
                   letterSpacing="-0.02em"
-                  textDecoration={book.finished ? "line-through" : undefined}
+                  textDecoration={book.isFinished ? "line-through" : undefined}
                 >
                   {book.title}
                 </Text>
                 <Text color="fg.muted" fontSize="sm" mt={1}>
-                  {book.author}
+                  {book.author ?? "—"}
                 </Text>
               </Link>
 
-              {book.finished && (
+              {book.isFinished && (
                 <Badge mt={3} variant="subtle" borderRadius="md" px={2} py={1}>
                   Finished
                 </Badge>
@@ -120,7 +120,7 @@ const BookList = ({
                     <Box
                       as="button"
                       onClick={() => {
-                        onToggleFinished?.(book.id, !book.finished)
+                        onToggleFinished?.({ bookId: book.id, isFinished: !book.isFinished })
                         setOpenMenuId(null)
                       }}
                       textAlign="left"
@@ -129,7 +129,7 @@ const BookList = ({
                       px={2}
                       py={2}
                     >
-                      <Text>{book.finished ? "Mark as unfinished" : "Set as finished"}</Text>
+                      <Text>{book.isFinished ? "Mark as unfinished" : "Set as finished"}</Text>
                     </Box>
                   </Stack>
                 </Box>

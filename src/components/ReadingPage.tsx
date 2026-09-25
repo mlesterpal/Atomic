@@ -2,11 +2,15 @@ import { Box, Button, Flex, Heading, Input, Stack, Text } from "@chakra-ui/react
 import { useEffect, useState } from "react"
 import BookList from "./BookList"
 import PageHeading from "./PageHeading"
-import { loadReadingState, saveReadingState, type ReadingState } from "../state/readingStore"
+import { useAddBook, useDeleteBook, useGetAllBooks, useToggleFinished } from "../hooks/bookRepository"
 
 const ReadingPage = () => {
-  const [readingState, setReadingState] = useState<ReadingState>(() => loadReadingState())
-  const books = readingState.books
+  const booksQuery = useGetAllBooks()
+  const addBookMutation = useAddBook()
+  const deleteBookMutation = useDeleteBook()
+  const toggleFinishedMutation = useToggleFinished()
+
+  const books = booksQuery.data ?? []
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [draftTitle, setDraftTitle] = useState("")
@@ -45,6 +49,28 @@ const ReadingPage = () => {
           Add book
         </Button>
       </Flex>
+
+      {booksQuery.isLoading && (
+        <Box borderWidth="1px" borderRadius="2xl" bg="bg.panel" p={6} mb={6}>
+          <Heading size="md" letterSpacing="-0.02em">
+            Loading…
+          </Heading>
+          <Text color="fg.muted" mt={2}>
+            Fetching books from the API.
+          </Text>
+        </Box>
+      )}
+
+      {booksQuery.isError && (
+        <Box borderWidth="1px" borderRadius="2xl" bg="bg.panel" p={6} mb={6}>
+          <Heading size="md" letterSpacing="-0.02em">
+            Couldn’t load books
+          </Heading>
+          <Text color="fg.muted" mt={2}>
+            {String(booksQuery.error)}
+          </Text>
+        </Box>
+      )}
 
       {isCreateOpen && (
         <Box
@@ -115,21 +141,12 @@ const ReadingPage = () => {
                 Cancel
               </Button>
               <Button
-                onClick={() => {
+                onClick={async () => {
                   const title = draftTitle.trim()
                   const author = draftAuthor.trim()
                   if (!title || !author) return
 
-                  const nextId = (books.reduce((m, b) => Math.max(m, b.id), 0) || 0) + 1
-                  const nextState: ReadingState = {
-                    books: [{ id: nextId, title, author }, ...books],
-                    notesById: {
-                      ...readingState.notesById,
-                      [nextId]: { lastPageRead: undefined, quotes: [] },
-                    },
-                  }
-                  setReadingState(nextState)
-                  saveReadingState(nextState)
+                  await addBookMutation.mutateAsync({ title, author })
                   closeCreate()
                 }}
                 disabled={!draftTitle.trim() || !draftAuthor.trim()}
@@ -143,19 +160,8 @@ const ReadingPage = () => {
 
       <BookList
         books={books}
-        onDeleteBook={(bookId) => {
-          const nextBooks = books.filter((b) => b.id !== bookId)
-          const { [bookId]: _removed, ...restNotes } = readingState.notesById
-          const nextState: ReadingState = { books: nextBooks, notesById: restNotes }
-          setReadingState(nextState)
-          saveReadingState(nextState)
-        }}
-        onToggleFinished={(bookId, finished) => {
-          const nextBooks = books.map((b) => (b.id === bookId ? { ...b, finished } : b))
-          const nextState: ReadingState = { ...readingState, books: nextBooks }
-          setReadingState(nextState)
-          saveReadingState(nextState)
-        }}
+        onDeleteBook={deleteBookMutation.mutate}
+        onToggleFinished={toggleFinishedMutation.mutate}
       />
     </Box>
   )
