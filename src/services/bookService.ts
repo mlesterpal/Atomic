@@ -1,4 +1,5 @@
 import type { Book } from "../entities/response/Book"
+import type { BookFavoriteLine } from "../entities/response/BookFavoriteLine"
 import { axiosInstance } from "./apiClient"
 
 export type AddNewBookRequest = {
@@ -28,5 +29,12 @@ export const deleteBook = async (id: number): Promise<void> => {
 
 export const updateBook = async (id: number, payload: UpdateBookRequest): Promise<void> => {
   await axiosInstance.put(`/books/updatebook/${id}`, payload)
+}
+
+export const getAllFavoriteLines = async (bookId: number): Promise<BookFavoriteLine[]> => {
+  const response = await axiosInstance.get<BookFavoriteLine[]>(
+    `/books/getallfavoritelines/${bookId}`
+  )
+  return response.data
 }
 

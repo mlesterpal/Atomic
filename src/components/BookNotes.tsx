@@ -15,11 +15,13 @@ import {
 } from "@chakra-ui/react"
 import { LuBookOpen, LuEllipsisVertical, LuQuote, LuStar } from "react-icons/lu"
 import { useEffect, useMemo, useState, type ElementType } from "react"
+import { useGetAllFavoriteLines } from "../hooks/bookRepository"
 
 export type BookNotesBook = {
   id: number
   title: string
   author: string | null
+  lastPageRead: number
 }
 
 export type BookNotesQuote = {
@@ -31,12 +33,6 @@ export type BookNotesQuote = {
 
 type BookNotesProps = {
   book?: BookNotesBook
-  lastPageRead?: number
-  quotes?: BookNotesQuote[]
-  onUpdateLastPageRead?: (value?: number) => void
-  onAddQuote?: (quote: BookNotesQuote) => void
-  onDeleteQuote?: (quoteId: string) => void
-  onToggleQuoteFavorite?: (quoteId: string, favorite: boolean) => void
 }
 
 const formatNumberOrEmpty = (n: number | undefined) => (typeof n === "number" ? `${n}` : "")
@@ -100,12 +96,6 @@ const StatCard = ({
 
 const BookNotes = ({
   book,
-  lastPageRead,
-  quotes = [],
-  onUpdateLastPageRead,
-  onAddQuote,
-  onDeleteQuote,
-  onToggleQuoteFavorite,
 }: BookNotesProps) => {
   if (!book) {
     return (
@@ -120,23 +110,35 @@ const BookNotes = ({
     )
   }
 
-  const [pageRead, setPageRead] = useState<number | undefined>(lastPageRead)
-  const [favoriteLines, setFavoriteLines] = useState<BookNotesQuote[]>(quotes)
+  const favoriteLinesQuery = useGetAllFavoriteLines(book.id)
+  const apiQuotes = useMemo<BookNotesQuote[]>(() => {
+    const lines = favoriteLinesQuery.data
+    if (!lines) return []
+    return lines.map((l) => ({
+      id: `${l.id}`,
+      text: l.line,
+      page: typeof l.pageNumber === "number" ? l.pageNumber : undefined,
+      favorite: l.isFavorite,
+    }))
+  }, [favoriteLinesQuery.data])
 
-  // keep local preview state in sync when switching books
+  const [pageRead, setPageRead] = useState<number>(book.lastPageRead)
+  const [favoriteLines, setFavoriteLines] = useState<BookNotesQuote[]>(() => apiQuotes)
+
+  // keep local preview state in sync when switching books / query updates
   useEffect(() => {
-    setPageRead(lastPageRead)
-  }, [lastPageRead])
+    setPageRead(book.lastPageRead)
+  }, [book.id, book.lastPageRead])
 
   useEffect(() => {
-    setFavoriteLines(quotes)
-  }, [quotes])
+    setFavoriteLines(apiQuotes)
+  }, [apiQuotes])
 
   const [isUpdatePageOpen, setIsUpdatePageOpen] = useState(false)
   const [isAddLineOpen, setIsAddLineOpen] = useState(false)
   const [openQuoteMenuId, setOpenQuoteMenuId] = useState<string | null>(null)
 
-  const [draftPageRead, setDraftPageRead] = useState(() => formatNumberOrEmpty(lastPageRead))
+  const [draftPageRead, setDraftPageRead] = useState(() => formatNumberOrEmpty(pageRead))
 
   const [draftLineText, setDraftLineText] = useState("")
   const [draftLinePage, setDraftLinePage] = useState("")
@@ -176,7 +178,7 @@ const BookNotes = ({
             <StatCard
               icon={LuBookOpen}
               label="Last page read"
-              value={typeof pageRead === "number" ? `Page ${pageRead}` : "—"}
+              value={`Page ${pageRead}`}
             />
             <Button
               size="sm"
@@ -284,7 +286,6 @@ const BookNotes = ({
                           justifyContent="flex-start"
                           onClick={() => {
                             setFavoriteLines((prev) => prev.filter((x) => x.id !== q.id))
-                            onDeleteQuote?.(q.id)
                             setOpenQuoteMenuId(null)
                           }}
                         >
@@ -301,7 +302,6 @@ const BookNotes = ({
                                 x.id === q.id ? { ...x, favorite: nextFavorite } : x
                               )
                             )
-                            onToggleQuoteFavorite?.(q.id, nextFavorite)
                             setOpenQuoteMenuId(null)
                           }}
                         >
@@ -380,16 +380,14 @@ const BookNotes = ({
                 onClick={() => {
                   const raw = draftPageRead.trim()
                   if (!raw) {
-                    setPageRead(undefined)
-                    onUpdateLastPageRead?.(undefined)
+                    setPageRead(0)
                     closeUpdatePage()
                     return
                   }
                   const n = Number(raw)
-                  if (!Number.isFinite(n) || n <= 0) return
+                  if (!Number.isFinite(n) || n < 0) return
                   const next = Math.floor(n)
                   setPageRead(next)
-                  onUpdateLastPageRead?.(next)
                   closeUpdatePage()
                 }}
               >
@@ -488,7 +486,6 @@ const BookNotes = ({
                   }
 
                   setFavoriteLines((prev) => [quote, ...prev])
-                  onAddQuote?.(quote)
                   closeAddLine()
                 }}
                 disabled={!draftLineText.trim()}

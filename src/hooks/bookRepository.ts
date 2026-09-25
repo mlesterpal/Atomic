@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   addNewBook,
   deleteBook,
+  getAllFavoriteLines,
   getAllBooks,
   updateBook,
   type AddNewBookRequest,
@@ -42,5 +43,13 @@ export const useToggleFinished = () => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["books"] })
     },
+  })
+}
+
+export const useGetAllFavoriteLines = (bookId: number) => {
+  return useQuery({
+    queryKey: ["books", bookId, "favoriteLines"],
+    queryFn: () => getAllFavoriteLines(bookId),
+    enabled: Number.isFinite(bookId),
   })
 }
