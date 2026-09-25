@@ -76,3 +76,13 @@ export const useDeleteFavoriteLine = (bookId: number) => {
     },
   })
 }
+
+export const useUpdateLastPageRead = (bookId: number) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (lastPageRead: number) => updateBook(bookId, { lastPageRead }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["books"] })
+    },
+  })
+}
