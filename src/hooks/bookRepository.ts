@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   addNewBook,
+  addFavoriteLine,
   deleteBook,
   getAllFavoriteLines,
   getAllBooks,
   updateBook,
   type AddNewBookRequest,
+  type AddBookFavoriteLineRequest,
 } from "../services/bookService"
 
 export const useGetAllBooks = () => {
@@ -51,5 +53,15 @@ export const useGetAllFavoriteLines = (bookId: number) => {
     queryKey: ["books", bookId, "favoriteLines"],
     queryFn: () => getAllFavoriteLines(bookId),
     enabled: Number.isFinite(bookId),
+  })
+}
+
+export const useAddFavoriteLine = (bookId: number) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: AddBookFavoriteLineRequest) => addFavoriteLine(bookId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["books", bookId, "favoriteLines"] })
+    },
   })
 }

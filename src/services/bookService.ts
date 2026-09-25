@@ -14,6 +14,12 @@ export type UpdateBookRequest = {
   lastPageRead?: number
 }
 
+export type AddBookFavoriteLineRequest = {
+  line: string
+  pageNumber?: number | null
+  isFavorite?: boolean | null
+}
+
 export const getAllBooks = async (): Promise<Book[]> => {
   const response = await axiosInstance.get<Book[]>("/books/getallbooks")
   return response.data
@@ -36,5 +42,12 @@ export const getAllFavoriteLines = async (bookId: number): Promise<BookFavoriteL
     `/books/getallfavoritelines/${bookId}`
   )
   return response.data
+}
+
+export const addFavoriteLine = async (
+  bookId: number,
+  payload: AddBookFavoriteLineRequest
+): Promise<void> => {
+  await axiosInstance.post(`/books/addfavoriteline/${bookId}`, payload)
 }
 

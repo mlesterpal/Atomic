@@ -15,7 +15,7 @@ import {
 } from "@chakra-ui/react"
 import { LuBookOpen, LuEllipsisVertical, LuQuote, LuStar } from "react-icons/lu"
 import { useEffect, useMemo, useState, type ElementType } from "react"
-import { useGetAllFavoriteLines } from "../hooks/bookRepository"
+import { useAddFavoriteLine, useGetAllFavoriteLines } from "../hooks/bookRepository"
 
 export type BookNotesBook = {
   id: number
@@ -111,6 +111,7 @@ const BookNotes = ({
   }
 
   const favoriteLinesQuery = useGetAllFavoriteLines(book.id)
+  const addFavoriteLineMutation = useAddFavoriteLine(book.id)
   const apiQuotes = useMemo<BookNotesQuote[]>(() => {
     const lines = favoriteLinesQuery.data
     if (!lines) return []
@@ -470,7 +471,7 @@ const BookNotes = ({
                 Cancel
               </Button>
               <Button
-                onClick={() => {
+                onClick={async () => {
                   const text = draftLineText.trim()
                   if (!text) return
 
@@ -478,17 +479,14 @@ const BookNotes = ({
                   const page = pageRaw ? Number(pageRaw) : undefined
                   if (pageRaw && (!Number.isFinite(page) || (page ?? 0) <= 0)) return
 
-                  const quote: BookNotesQuote = {
-                    id: `line-${Date.now()}`,
-                    text,
-                    page: typeof page === "number" ? Math.floor(page) : undefined,
-                    favorite: true,
-                  }
-
-                  setFavoriteLines((prev) => [quote, ...prev])
+                  await addFavoriteLineMutation.mutateAsync({
+                    line: text,
+                    pageNumber: typeof page === "number" ? Math.floor(page) : null,
+                    isFavorite: false,
+                  })
                   closeAddLine()
                 }}
-                disabled={!draftLineText.trim()}
+                disabled={!draftLineText.trim() || addFavoriteLineMutation.isPending}
               >
                 Add
               </Button>
