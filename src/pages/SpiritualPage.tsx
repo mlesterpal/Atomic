@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from "react"
 import PageHeading from "../components/PageHeading"
 import { useGetAllSpiritualCategories } from "../hooks/spiritualRepository"
+import { useGetSpiritualNotesByCategory } from "../hooks/spiritualRepository"
 
 type SpiritualNote = {
   id: string
@@ -40,65 +41,6 @@ const formatDateHeading = (iso: string) => {
   }).format(d)
 }
 
-const initialNotes: SpiritualNote[] = [
-  // Sep 23
-  {
-    id: "2026-09-23-gems-1",
-    dateISO: "2026-09-23",
-    category: "Spiritual Gems",
-    type: "Exodus 3:14 — “I Will Become”",
-    notes: "Jehovah’s name highlights purposeful action. Trust that he becomes what is needed to fulfill his promises.",
-  },
-  {
-    id: "2026-09-23-cbs-1",
-    dateISO: "2026-09-23",
-    category: "CBS",
-    type: "CBS paragraph 6",
-    notes: "Key point: listening with empathy helps build trust and makes counsel easier to accept.",
-  },
-
-  // Sep 22
-  {
-    id: "2026-09-22-lac-1",
-    dateISO: "2026-09-22",
-    category: "Living as Christians",
-    type: "Apply yourself — ministry tip",
-    notes: "Keep introductions simple. Ask one clear question and pause—let the person speak.",
-  },
-  {
-    id: "2026-09-22-wt-1",
-    dateISO: "2026-09-22",
-    category: "Watchtower Study",
-    type: "WT paragraph 10",
-    notes: "Real humility shows in small choices: giving others credit, being quick to apologize, and accepting direction.",
-  },
-
-  // Sep 21
-  {
-    id: "2026-09-21-gems-1",
-    dateISO: "2026-09-21",
-    category: "Spiritual Gems",
-    type: "Genesis 39:9 — integrity",
-    notes: "Integrity is decided before the temptation comes. Plan boundaries ahead of time.",
-  },
-
-  // Older dates (should only appear when a specific category is selected)
-  {
-    id: "2026-09-18-wt-1",
-    dateISO: "2026-09-18",
-    category: "Watchtower Study",
-    type: "WT paragraph 3",
-    notes: "Jehovah’s patience invites repentance—imitate him by being slow to judge and quick to forgive.",
-  },
-  {
-    id: "2026-09-15-cbs-1",
-    dateISO: "2026-09-15",
-    category: "CBS",
-    type: "CBS review question",
-    notes: "Ask: What is the main lesson? How can I apply it this week in speech or attitude?",
-  },
-]
-
 const SpiritualPage = () => {
   const categoriesQuery = useGetAllSpiritualCategories()
   const categoryChips = useMemo(
@@ -106,7 +48,7 @@ const SpiritualPage = () => {
     [categoriesQuery.data]
   )
 
-  const [notes, setNotes] = useState<SpiritualNote[]>(() => initialNotes)
+  const [notes, setNotes] = useState<SpiritualNote[]>([])
 
   const allDatesNewestFirst = useMemo(() => {
     return Array.from(new Set(notes.map((n) => n.dateISO))).sort((a, b) => b.localeCompare(a))
@@ -116,6 +58,27 @@ const SpiritualPage = () => {
 
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | "All">("All")
+
+  const selectedCategoryId = useMemo(() => {
+    if (selectedCategory === "All") return null
+    const match = (categoriesQuery.data ?? []).find((c) => c.name === selectedCategory)
+    return match?.id ?? null
+  }, [categoriesQuery.data, selectedCategory])
+
+  const notesQuery = useGetSpiritualNotesByCategory(selectedCategoryId)
+
+  useEffect(() => {
+    const rows = notesQuery.data
+    if (!rows) return
+    const mapped: SpiritualNote[] = rows.map((r) => ({
+      id: `${r.noteId}`,
+      dateISO: r.noteDate.slice(0, 10),
+      category: r.categoryName,
+      type: r.title,
+      notes: r.notes ?? "",
+    }))
+    setNotes(mapped)
+  }, [notesQuery.data])
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [draftDateISO, setDraftDateISO] = useState(() => toISODate(new Date()))
@@ -145,8 +108,7 @@ const SpiritualPage = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return notes
-      .filter((n) => (selectedCategory === "All" ? mostRecent3Days.includes(n.dateISO) : true))
-      .filter((n) => (selectedCategory === "All" ? true : n.category === selectedCategory))
+      .filter((n) => mostRecent3Days.includes(n.dateISO))
       .filter((n) => {
         if (!q) return true
         return (
@@ -166,9 +128,7 @@ const SpiritualPage = () => {
     }
 
     const dateOrder =
-      selectedCategory === "All"
-        ? mostRecent3Days
-        : Array.from(new Set(filtered.map((n) => n.dateISO))).sort((a, b) => b.localeCompare(a))
+      mostRecent3Days
 
     return dateOrder.filter((d) => map.has(d)).map((d) => ({ dateISO: d, notes: map.get(d) ?? [] }))
   }, [filtered, mostRecent3Days, selectedCategory])
