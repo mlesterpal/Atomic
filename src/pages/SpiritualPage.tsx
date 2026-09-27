@@ -13,23 +13,15 @@ import {
 } from "@chakra-ui/react"
 import { useEffect, useMemo, useState } from "react"
 import PageHeading from "../components/PageHeading"
-
-type SpiritualCategory = "Spiritual Gems" | "CBS" | "Living as Christians" | "Watchtower Study"
+import { useGetAllSpiritualCategories } from "../hooks/spiritualRepository"
 
 type SpiritualNote = {
   id: string
   dateISO: string // YYYY-MM-DD
-  category: SpiritualCategory
+  category: string
   type: string
   notes: string
 }
-
-const categoryChips: SpiritualCategory[] = [
-  "Spiritual Gems",
-  "CBS",
-  "Living as Christians",
-  "Watchtower Study",
-]
 
 const pad2 = (n: number) => String(n).padStart(2, "0")
 
@@ -108,6 +100,12 @@ const initialNotes: SpiritualNote[] = [
 ]
 
 const SpiritualPage = () => {
+  const categoriesQuery = useGetAllSpiritualCategories()
+  const categoryChips = useMemo(
+    () => (categoriesQuery.data ?? []).map((c) => c.name),
+    [categoriesQuery.data]
+  )
+
   const [notes, setNotes] = useState<SpiritualNote[]>(() => initialNotes)
 
   const allDatesNewestFirst = useMemo(() => {
@@ -117,17 +115,17 @@ const SpiritualPage = () => {
   const mostRecent3Days = useMemo(() => allDatesNewestFirst.slice(0, 3), [allDatesNewestFirst])
 
   const [query, setQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<SpiritualCategory | "All">("All")
+  const [selectedCategory, setSelectedCategory] = useState<string | "All">("All")
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [draftDateISO, setDraftDateISO] = useState(() => toISODate(new Date()))
-  const [draftCategory, setDraftCategory] = useState<SpiritualCategory>("Spiritual Gems")
+  const [draftCategory, setDraftCategory] = useState<string>("")
   const [draftType, setDraftType] = useState("")
   const [draftNotes, setDraftNotes] = useState("")
 
   const openCreate = () => {
     setDraftDateISO(toISODate(new Date()))
-    setDraftCategory("Spiritual Gems")
+    setDraftCategory(categoryChips[0] ?? "")
     setDraftType("")
     setDraftNotes("")
     setIsCreateOpen(true)
@@ -331,16 +329,17 @@ const SpiritualPage = () => {
               <Button
                 onClick={() => {
                   const dateISO = draftDateISO.trim()
+                  const category = draftCategory.trim()
                   const type = draftType.trim()
                   const notesText = draftNotes.trim()
-                  if (!dateISO || !type || !notesText) return
+                  if (!dateISO || !category || !type || !notesText) return
 
-                  const id = `${dateISO}-${draftCategory.replaceAll(" ", "-").toLowerCase()}-${Date.now()}`
+                  const id = `${dateISO}-${category.replaceAll(" ", "-").toLowerCase()}-${Date.now()}`
                   setNotes((prev) => [
                     {
                       id,
                       dateISO,
-                      category: draftCategory,
+                      category,
                       type,
                       notes: notesText,
                     },
@@ -348,7 +347,9 @@ const SpiritualPage = () => {
                   ])
                   closeCreate()
                 }}
-                disabled={!draftDateISO.trim() || !draftType.trim() || !draftNotes.trim()}
+                disabled={
+                  !draftDateISO.trim() || !draftCategory.trim() || !draftType.trim() || !draftNotes.trim()
+                }
               >
                 Create note
               </Button>
