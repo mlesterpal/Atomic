@@ -19,6 +19,7 @@ import PageHeading from "../components/PageHeading"
 import { useGetAllSpiritualCategories } from "../hooks/spiritualRepository"
 import { useGetSpiritualNotesByCategory } from "../hooks/spiritualRepository"
 import { useDeleteSpiritualNote } from "../hooks/spiritualRepository"
+import { useAddSpiritualNote } from "../hooks/spiritualRepository"
 
 type SpiritualNote = {
   id: string
@@ -72,6 +73,7 @@ const SpiritualPage = () => {
 
   const notesQuery = useGetSpiritualNotesByCategory(selectedCategoryId)
   const deleteNoteMutation = useDeleteSpiritualNote()
+  const addNoteMutation = useAddSpiritualNote()
 
   useEffect(() => {
     const rows = notesQuery.data
@@ -311,25 +313,34 @@ const SpiritualPage = () => {
                   const notesText = draftNotes.trim()
                   if (!dateISO || !category || !type || !notesText) return
 
-                  setNotes((prev) => {
-                    if (editingNoteId) {
-                      return prev.map((x) =>
-                        x.id === editingNoteId
-                          ? { ...x, dateISO, category, type, notes: notesText }
-                          : x
+                  // Editing is local-only for now (no API update endpoint yet).
+                  if (editingNoteId) {
+                    setNotes((prev) =>
+                      prev.map((n) =>
+                        n.id === editingNoteId
+                          ? {
+                              ...n,
+                              dateISO,
+                              category,
+                              type,
+                              notes: notesText,
+                            }
+                          : n
                       )
-                    }
-                    const id = `${dateISO}-${category.replaceAll(" ", "-").toLowerCase()}-${Date.now()}`
-                    return [
-                      {
-                        id,
-                        dateISO,
-                        category,
-                        type,
-                        notes: notesText,
-                      },
-                      ...prev,
-                    ]
+                    )
+                    closeCreate()
+                    return
+                  }
+
+                  // Create (API-backed).
+                  const cat = (categoriesQuery.data ?? []).find((c) => c.name === category)
+                  if (!cat) return
+
+                  addNoteMutation.mutate({
+                    categoryId: cat.id,
+                    title: type,
+                    notes: notesText,
+                    createdAt: `${dateISO}T00:00:00`,
                   })
                   closeCreate()
                 }}
