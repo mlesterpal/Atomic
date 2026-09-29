@@ -5,6 +5,8 @@ import {
   getAllSpiritualCategories,
   getSpiritualNotesByCategory,
   type AddSpiritualNoteRequest,
+  updateSpiritualNote,
+  type UpdateSpiritualNoteRequest,
 } from "../services/spiritualService"
 
 export const useGetAllSpiritualCategories = () => {
@@ -35,6 +37,17 @@ export const useAddSpiritualNote = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: AddSpiritualNoteRequest) => addSpiritualNote(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["spiritual", "notes"] })
+    },
+  })
+}
+
+export const useUpdateSpiritualNote = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ noteId, payload }: { noteId: number; payload: UpdateSpiritualNoteRequest }) =>
+      updateSpiritualNote(noteId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["spiritual", "notes"] })
     },

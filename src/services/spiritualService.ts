@@ -9,6 +9,13 @@ export type AddSpiritualNoteRequest = {
   createdAt?: string | null
 }
 
+export type UpdateSpiritualNoteRequest = {
+  categoryId: number
+  title: string
+  notes?: string | null
+  createdAt?: string | null
+}
+
 export const getAllSpiritualCategories = async (): Promise<SpiritualCategory[]> => {
   const response = await axiosInstance.get<SpiritualCategory[]>("/spiritual/categories")
   return response.data
@@ -29,5 +36,12 @@ export const deleteSpiritualNote = async (noteId: number): Promise<void> => {
 
 export const addSpiritualNote = async (payload: AddSpiritualNoteRequest): Promise<void> => {
   await axiosInstance.post("/spiritual/note", payload)
+}
+
+export const updateSpiritualNote = async (
+  noteId: number,
+  payload: UpdateSpiritualNoteRequest
+): Promise<void> => {
+  await axiosInstance.put(`/spiritual/note/${noteId}`, payload)
 }
 
