@@ -16,3 +16,7 @@ export const getSpiritualNotesByCategory = async (
   return response.data
 }
 
+export const deleteSpiritualNote = async (noteId: number): Promise<void> => {
+  await axiosInstance.delete(`/spiritual/note/${noteId}`)
+}
+

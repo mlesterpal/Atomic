@@ -6,15 +6,19 @@ import {
   Grid,
   Heading,
   HStack,
+  Icon,
+  IconButton,
   Input,
   Stack,
   Textarea,
   Text,
 } from "@chakra-ui/react"
 import { useEffect, useMemo, useState } from "react"
+import { FaEllipsisH } from "react-icons/fa"
 import PageHeading from "../components/PageHeading"
 import { useGetAllSpiritualCategories } from "../hooks/spiritualRepository"
 import { useGetSpiritualNotesByCategory } from "../hooks/spiritualRepository"
+import { useDeleteSpiritualNote } from "../hooks/spiritualRepository"
 
 type SpiritualNote = {
   id: string
@@ -58,6 +62,7 @@ const SpiritualPage = () => {
 
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | "All">("All")
+  const [openNoteMenuId, setOpenNoteMenuId] = useState<string | null>(null)
 
   const selectedCategoryId = useMemo(() => {
     if (selectedCategory === "All") return null
@@ -66,6 +71,7 @@ const SpiritualPage = () => {
   }, [categoriesQuery.data, selectedCategory])
 
   const notesQuery = useGetSpiritualNotesByCategory(selectedCategoryId)
+  const deleteNoteMutation = useDeleteSpiritualNote()
 
   useEffect(() => {
     const rows = notesQuery.data
@@ -81,16 +87,27 @@ const SpiritualPage = () => {
   }, [notesQuery.data])
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [draftDateISO, setDraftDateISO] = useState(() => toISODate(new Date()))
   const [draftCategory, setDraftCategory] = useState<string>("")
   const [draftType, setDraftType] = useState("")
   const [draftNotes, setDraftNotes] = useState("")
 
   const openCreate = () => {
+    setEditingNoteId(null)
     setDraftDateISO(toISODate(new Date()))
     setDraftCategory(categoryChips[0] ?? "")
     setDraftType("")
     setDraftNotes("")
+    setIsCreateOpen(true)
+  }
+
+  const openEdit = (n: SpiritualNote) => {
+    setEditingNoteId(n.id)
+    setDraftDateISO(n.dateISO)
+    setDraftCategory(n.category)
+    setDraftType(n.type)
+    setDraftNotes(n.notes)
     setIsCreateOpen(true)
   }
 
@@ -211,7 +228,7 @@ const SpiritualPage = () => {
           >
             <Flex justify="space-between" align="center" gap={4}>
               <Heading size="md" letterSpacing="-0.02em">
-                New note
+                {editingNoteId ? "Edit note" : "New note"}
               </Heading>
               <Button variant="ghost" onClick={closeCreate}>
                 Close
@@ -294,31 +311,40 @@ const SpiritualPage = () => {
                   const notesText = draftNotes.trim()
                   if (!dateISO || !category || !type || !notesText) return
 
-                  const id = `${dateISO}-${category.replaceAll(" ", "-").toLowerCase()}-${Date.now()}`
-                  setNotes((prev) => [
-                    {
-                      id,
-                      dateISO,
-                      category,
-                      type,
-                      notes: notesText,
-                    },
-                    ...prev,
-                  ])
+                  setNotes((prev) => {
+                    if (editingNoteId) {
+                      return prev.map((x) =>
+                        x.id === editingNoteId
+                          ? { ...x, dateISO, category, type, notes: notesText }
+                          : x
+                      )
+                    }
+                    const id = `${dateISO}-${category.replaceAll(" ", "-").toLowerCase()}-${Date.now()}`
+                    return [
+                      {
+                        id,
+                        dateISO,
+                        category,
+                        type,
+                        notes: notesText,
+                      },
+                      ...prev,
+                    ]
+                  })
                   closeCreate()
                 }}
                 disabled={
                   !draftDateISO.trim() || !draftCategory.trim() || !draftType.trim() || !draftNotes.trim()
                 }
               >
-                Create note
+                {editingNoteId ? "Save changes" : "Create note"}
               </Button>
             </Flex>
           </Box>
         </Box>
       )}
 
-      <Stack gap={6}>
+      <Stack gap={6} onMouseDown={() => setOpenNoteMenuId(null)}>
         {grouped.length === 0 ? (
           <Box borderWidth="1px" borderRadius="2xl" bg="bg.panel" p={6}>
             <Heading size="md" letterSpacing="-0.02em">
@@ -355,14 +381,77 @@ const SpiritualPage = () => {
                       transform: "translateY(-2px)",
                     }}
                   >
-                    <Text
-                      color="fg.muted"
-                      fontSize="xs"
-                      fontWeight="medium"
-                      letterSpacing="0.08em"
-                    >
-                      {n.category.toUpperCase()}
-                    </Text>
+                    <Flex justify="space-between" align="start" gap={4}>
+                      <Text
+                        color="fg.muted"
+                        fontSize="xs"
+                        fontWeight="medium"
+                        letterSpacing="0.08em"
+                      >
+                        {n.category.toUpperCase()}
+                      </Text>
+
+                      <Box position="relative" onMouseDown={(e) => e.stopPropagation()}>
+                        <IconButton
+                          aria-label="Note actions"
+                          variant="ghost"
+                          size="sm"
+                          color="fg.muted"
+                          onClick={() => setOpenNoteMenuId((prev) => (prev === n.id ? null : n.id))}
+                        >
+                          <Icon as={FaEllipsisH} boxSize={4} />
+                        </IconButton>
+
+                        {openNoteMenuId === n.id && (
+                          <Box
+                            position="absolute"
+                            top="9"
+                            right="0"
+                            minW="40"
+                            borderWidth="1px"
+                            borderRadius="xl"
+                            bg="bg.panel"
+                            p={2}
+                            boxShadow="lg"
+                            zIndex="popover"
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <Stack gap={1}>
+                              <Box
+                                as="button"
+                                onClick={() => {
+                                  openEdit(n)
+                                  setOpenNoteMenuId(null)
+                                }}
+                                textAlign="left"
+                                borderRadius="md"
+                                _hover={{ bg: "bg.muted" }}
+                                px={2}
+                                py={2}
+                              >
+                                <Text>Edit</Text>
+                              </Box>
+                              <Box
+                                as="button"
+                                onClick={() => {
+                                  const noteId = Number(n.id)
+                                  if (!Number.isFinite(noteId)) return
+                                  deleteNoteMutation.mutate(noteId)
+                                  setOpenNoteMenuId(null)
+                                }}
+                                textAlign="left"
+                                borderRadius="md"
+                                _hover={{ bg: "bg.muted" }}
+                                px={2}
+                                py={2}
+                              >
+                                <Text>Delete</Text>
+                              </Box>
+                            </Stack>
+                          </Box>
+                        )}
+                      </Box>
+                    </Flex>
                     <Text fontWeight="semibold" fontSize="lg" letterSpacing="-0.02em" mt={2}>
                       {n.type}
                     </Text>
