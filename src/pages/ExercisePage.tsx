@@ -17,8 +17,13 @@ import { useEffect, useMemo, useState } from "react"
 import { FaEllipsisH } from "react-icons/fa"
 import PageHeading from "../components/PageHeading"
 import BestExerciseRecord from "../components/BestExerciseRecord"
+import { useGetAllExerciseCategories } from "../hooks/exerciseRepository"
 
-type ExerciseCategory = "Running" | "Bike" | "Lifting" | "Basketball"
+const KNOWN_CATEGORIES = ["Running", "Bike", "Lifting", "Basketball"] as const
+type ExerciseCategory = (typeof KNOWN_CATEGORIES)[number]
+
+const isExerciseCategory = (value: string): value is ExerciseCategory =>
+  (KNOWN_CATEGORIES as readonly string[]).includes(value)
 
 type ExerciseRecord = {
   id: string
@@ -29,8 +34,6 @@ type ExerciseRecord = {
   secondaryLabel: string // Time / Weight
   secondaryValue: string
 }
-
-const categoryChips: ExerciseCategory[] = ["Running", "Bike", "Lifting", "Basketball"]
 
 const pad2 = (n: number) => String(n).padStart(2, "0")
 
@@ -125,6 +128,17 @@ const initialRecords: ExerciseRecord[] = [
 ]
 
 const ExercisePage = () => {
+  const categoriesQuery = useGetAllExerciseCategories()
+  const categoryChips = useMemo(() => {
+    const fromApi = (categoriesQuery.data ?? [])
+      .map((c) => c.name)
+      .filter((name): name is string => Boolean(name && name.trim()))
+      .map((name) => name.trim())
+      .filter(isExerciseCategory)
+
+    return fromApi.length ? fromApi : [...KNOWN_CATEGORIES]
+  }, [categoriesQuery.data])
+
   const [records, setRecords] = useState<ExerciseRecord[]>(() => initialRecords)
 
   const mostRecent3Days = useMemo(() => {
@@ -150,7 +164,7 @@ const ExercisePage = () => {
   const openCreate = () => {
     setEditingRecordId(null)
     setDraftDateISO(toISODate(new Date()))
-    setDraftCategory("Running")
+    setDraftCategory(categoryChips[0] ?? "Running")
     setDraftPrimaryValue("")
     setDraftSecondaryValue("")
     setIsCreateOpen(true)
