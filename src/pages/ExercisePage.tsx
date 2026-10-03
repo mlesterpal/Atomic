@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from "react"
 import { FaEllipsisH } from "react-icons/fa"
 import PageHeading from "../components/PageHeading"
 import BestExerciseRecord from "../components/BestExerciseRecord"
-import { useGetAllExerciseCategories } from "../hooks/exerciseRepository"
+import { useAddExerciseRecord, useGetAllExerciseCategories } from "../hooks/exerciseRepository"
 
 const KNOWN_CATEGORIES = ["Running", "Bike", "Lifting", "Basketball"] as const
 type ExerciseCategory = (typeof KNOWN_CATEGORIES)[number]
@@ -129,6 +129,7 @@ const initialRecords: ExerciseRecord[] = [
 
 const ExercisePage = () => {
   const categoriesQuery = useGetAllExerciseCategories()
+  const addRecordMutation = useAddExerciseRecord()
   const categoryChips = useMemo(() => {
     const fromApi = (categoriesQuery.data ?? [])
       .map((c) => c.name)
@@ -160,6 +161,11 @@ const ExercisePage = () => {
   const [draftSecondaryValue, setDraftSecondaryValue] = useState("")
 
   const draftLabels = useMemo(() => labelsForCategory(draftCategory), [draftCategory])
+
+  const draftCategoryId = useMemo(() => {
+    const match = (categoriesQuery.data ?? []).find((c) => c.name === draftCategory)
+    return match?.id ?? null
+  }, [categoriesQuery.data, draftCategory])
 
   const openCreate = () => {
     setEditingRecordId(null)
@@ -403,24 +409,45 @@ const ExercisePage = () => {
                       )
                     }
 
-                    const id = `${dateISO}-${draftCategory.toLowerCase()}-${Date.now()}`
-                    return [
+                    // Create is API-backed (adds to DB), then we prepend it locally for now.
+                    if (!draftCategoryId) return prev
+
+                    addRecordMutation.mutate(
                       {
-                        id,
-                        dateISO,
-                        category: draftCategory,
+                        categoryId: draftCategoryId,
+                        recordDate: `${dateISO}T00:00:00`,
                         primaryLabel,
                         primaryValue,
                         secondaryLabel,
                         secondaryValue,
                       },
-                      ...prev,
-                    ]
+                      {
+                        onSuccess: (newId) => {
+                          setRecords((curr) => [
+                            {
+                              id: `${newId}`,
+                              dateISO,
+                              category: draftCategory,
+                              primaryLabel,
+                              primaryValue,
+                              secondaryLabel,
+                              secondaryValue,
+                            },
+                            ...curr,
+                          ])
+                          closeCreate()
+                        },
+                      }
+                    )
+
+                    return prev
                   })
-                  closeCreate()
                 }}
                 disabled={
-                  !draftDateISO.trim() || !draftPrimaryValue.trim() || !draftSecondaryValue.trim()
+                  !draftDateISO.trim() ||
+                  !draftPrimaryValue.trim() ||
+                  !draftSecondaryValue.trim() ||
+                  (!editingRecordId && !draftCategoryId)
                 }
               >
                 {editingRecordId ? "Save changes" : "Create record"}

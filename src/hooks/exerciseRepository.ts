@@ -1,10 +1,20 @@
-import { useQuery } from "@tanstack/react-query"
-import { getAllExerciseCategories } from "../services/exerciseService"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import {
+  addExerciseRecord,
+  getAllExerciseCategories,
+  type AddExerciseRecordRequest,
+} from "../services/exerciseService"
 
 export const useGetAllExerciseCategories = () => {
   return useQuery({
     queryKey: ["exercise", "categories"],
     queryFn: getAllExerciseCategories,
+  })
+}
+
+export const useAddExerciseRecord = () => {
+  return useMutation({
+    mutationFn: (payload: AddExerciseRecordRequest) => addExerciseRecord(payload),
   })
 }
 

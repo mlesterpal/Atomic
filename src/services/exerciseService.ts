@@ -6,3 +6,17 @@ export const getAllExerciseCategories = async (): Promise<ExerciseCategory[]> =>
   return response.data
 }
 
+export type AddExerciseRecordRequest = {
+  categoryId: number
+  recordDate: string
+  primaryLabel: string
+  primaryValue: string
+  secondaryLabel: string
+  secondaryValue: string
+}
+
+export const addExerciseRecord = async (payload: AddExerciseRecordRequest): Promise<number> => {
+  const response = await axiosInstance.post<{ id: number }>("/exercise/record", payload)
+  return response.data.id
+}
+
