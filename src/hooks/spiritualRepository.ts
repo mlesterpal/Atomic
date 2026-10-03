@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   addSpiritualNote,
   deleteSpiritualNote,
@@ -18,8 +18,26 @@ export const useGetAllSpiritualCategories = () => {
 
 export const useGetSpiritualNotesByCategory = (categoryId: number | null) => {
   return useQuery({
+    queryKey: ["spiritual", "notes", "single", categoryId],
+    queryFn: () => getSpiritualNotesByCategory(categoryId, null),
+  })
+}
+
+export const useInfiniteSpiritualNotesByCategory = (categoryId: number | null) => {
+  return useInfiniteQuery({
     queryKey: ["spiritual", "notes", categoryId],
-    queryFn: () => getSpiritualNotesByCategory(categoryId),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => getSpiritualNotesByCategory(categoryId, pageParam),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.length) return undefined
+
+      let oldest = lastPage[0].noteDate.slice(0, 10)
+      for (const r of lastPage) {
+        const d = r.noteDate.slice(0, 10)
+        if (d < oldest) oldest = d
+      }
+      return oldest
+    },
   })
 }
 

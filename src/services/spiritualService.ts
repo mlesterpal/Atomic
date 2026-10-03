@@ -22,10 +22,15 @@ export const getAllSpiritualCategories = async (): Promise<SpiritualCategory[]> 
 }
 
 export const getSpiritualNotesByCategory = async (
-  categoryId: number | null
+  categoryId: number | null,
+  beforeDate?: string | null
 ): Promise<SpiritualNotesByCategories[]> => {
+  const params: Record<string, unknown> = {}
+  if (categoryId) params.categoryId = categoryId
+  if (beforeDate) params.beforeDate = beforeDate
+
   const response = await axiosInstance.get<SpiritualNotesByCategories[]>("/spiritual/notes", {
-    params: categoryId ? { categoryId } : undefined,
+    params: Object.keys(params).length ? params : undefined,
   })
   return response.data
 }

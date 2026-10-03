@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from "react"
 import { FaEllipsisH } from "react-icons/fa"
 import PageHeading from "../components/PageHeading"
 import { useGetAllSpiritualCategories } from "../hooks/spiritualRepository"
-import { useGetSpiritualNotesByCategory } from "../hooks/spiritualRepository"
+import { useInfiniteSpiritualNotesByCategory } from "../hooks/spiritualRepository"
 import { useDeleteSpiritualNote } from "../hooks/spiritualRepository"
 import { useAddSpiritualNote } from "../hooks/spiritualRepository"
 import { useUpdateSpiritualNote } from "../hooks/spiritualRepository"
@@ -60,8 +60,6 @@ const SpiritualPage = () => {
     return Array.from(new Set(notes.map((n) => n.dateISO))).sort((a, b) => b.localeCompare(a))
   }, [notes])
 
-  const mostRecent3Days = useMemo(() => allDatesNewestFirst.slice(0, 3), [allDatesNewestFirst])
-
   const [query, setQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | "All">("All")
   const [openNoteMenuId, setOpenNoteMenuId] = useState<string | null>(null)
@@ -72,13 +70,13 @@ const SpiritualPage = () => {
     return match?.id ?? null
   }, [categoriesQuery.data, selectedCategory])
 
-  const notesQuery = useGetSpiritualNotesByCategory(selectedCategoryId)
+  const notesQuery = useInfiniteSpiritualNotesByCategory(selectedCategoryId)
   const deleteNoteMutation = useDeleteSpiritualNote()
   const addNoteMutation = useAddSpiritualNote()
   const updateNoteMutation = useUpdateSpiritualNote()
 
   useEffect(() => {
-    const rows = notesQuery.data
+    const rows = notesQuery.data?.pages.flat() ?? null
     if (!rows) return
     const mapped: SpiritualNote[] = rows.map((r) => ({
       id: `${r.noteId}`,
@@ -129,7 +127,6 @@ const SpiritualPage = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return notes
-      .filter((n) => mostRecent3Days.includes(n.dateISO))
       .filter((n) => {
         if (!q) return true
         return (
@@ -138,7 +135,7 @@ const SpiritualPage = () => {
           n.category.toLowerCase().includes(q)
         )
       })
-  }, [mostRecent3Days, notes, query, selectedCategory])
+  }, [notes, query])
 
   const grouped = useMemo(() => {
     const map = new Map<string, SpiritualNote[]>()
@@ -148,11 +145,10 @@ const SpiritualPage = () => {
       map.set(n.dateISO, arr)
     }
 
-    const dateOrder =
-      mostRecent3Days
+    const dateOrder = allDatesNewestFirst
 
     return dateOrder.filter((d) => map.has(d)).map((d) => ({ dateISO: d, notes: map.get(d) ?? [] }))
-  }, [filtered, mostRecent3Days, selectedCategory])
+  }, [allDatesNewestFirst, filtered])
 
   return (
     <Box maxW="5xl" mx="auto" px={{ base: 5, md: 8 }} py={{ base: 8, md: 12 }}>
@@ -479,6 +475,17 @@ const SpiritualPage = () => {
           ))
         )}
       </Stack>
+
+      <Flex mt={8} justify="center">
+        <Button
+          variant="outline"
+          onClick={() => notesQuery.fetchNextPage()}
+          loading={notesQuery.isFetchingNextPage}
+          disabled={!notesQuery.hasNextPage}
+        >
+          Load more
+        </Button>
+      </Flex>
     </Box>
   )
 }
