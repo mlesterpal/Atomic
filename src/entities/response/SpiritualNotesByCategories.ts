@@ -6,5 +6,6 @@ export type SpiritualNotesByCategories = {
   title: string
   notes: string | null
   createdAt: string
+  hasMore: boolean
 }
 

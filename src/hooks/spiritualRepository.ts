@@ -30,6 +30,7 @@ export const useInfiniteSpiritualNotesByCategory = (categoryId: number | null) =
     queryFn: ({ pageParam }) => getSpiritualNotesByCategory(categoryId, pageParam),
     getNextPageParam: (lastPage) => {
       if (!lastPage.length) return undefined
+      if (!lastPage[0].hasMore) return undefined
 
       let oldest = lastPage[0].noteDate.slice(0, 10)
       for (const r of lastPage) {
