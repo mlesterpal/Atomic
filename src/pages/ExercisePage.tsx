@@ -17,7 +17,12 @@ import { useEffect, useMemo, useState } from "react"
 import { FaEllipsisH } from "react-icons/fa"
 import PageHeading from "../components/PageHeading"
 import BestExerciseRecord from "../components/BestExerciseRecord"
-import { useAddExerciseRecord, useGetAllExerciseCategories } from "../hooks/exerciseRepository"
+import {
+  useAddExerciseRecord,
+  useGetAllExerciseCategories,
+  useGetBestLiftsByMuscleGroup,
+  useGetRecentExerciseRecords,
+} from "../hooks/exerciseRepository"
 
 const KNOWN_CATEGORIES = ["Running", "Bike", "Lifting", "Basketball"] as const
 type ExerciseCategory = (typeof KNOWN_CATEGORIES)[number]
@@ -65,71 +70,11 @@ const labelsForCategory = (category: ExerciseCategory) => {
   }
 }
 
-const initialRecords: ExerciseRecord[] = [
-  // Sep 23
-  {
-    id: "2026-09-23-running",
-    dateISO: "2026-09-23",
-    category: "Running",
-    primaryLabel: "Steps",
-    primaryValue: "6,200",
-    secondaryLabel: "Time",
-    secondaryValue: "32m",
-  },
-  {
-    id: "2026-09-23-bike",
-    dateISO: "2026-09-23",
-    category: "Bike",
-    primaryLabel: "KM",
-    primaryValue: "12.4",
-    secondaryLabel: "Time",
-    secondaryValue: "41m",
-  },
-
-  // Sep 22
-  {
-    id: "2026-09-22-running",
-    dateISO: "2026-09-22",
-    category: "Running",
-    primaryLabel: "Steps",
-    primaryValue: "5,100",
-    secondaryLabel: "Time",
-    secondaryValue: "26m",
-  },
-  {
-    id: "2026-09-22-bike",
-    dateISO: "2026-09-22",
-    category: "Bike",
-    primaryLabel: "KM",
-    primaryValue: "8.6",
-    secondaryLabel: "Time",
-    secondaryValue: "29m",
-  },
-
-  // Sep 21
-  {
-    id: "2026-09-21-running",
-    dateISO: "2026-09-21",
-    category: "Running",
-    primaryLabel: "Steps",
-    primaryValue: "7,430",
-    secondaryLabel: "Time",
-    secondaryValue: "38m",
-  },
-  {
-    id: "2026-09-21-bike",
-    dateISO: "2026-09-21",
-    category: "Bike",
-    primaryLabel: "KM",
-    primaryValue: "10.1",
-    secondaryLabel: "Time",
-    secondaryValue: "35m",
-  },
-]
-
 const ExercisePage = () => {
   const categoriesQuery = useGetAllExerciseCategories()
+  const recordsQuery = useGetRecentExerciseRecords()
   const addRecordMutation = useAddExerciseRecord()
+  const bestLiftsQuery = useGetBestLiftsByMuscleGroup()
   const categoryChips = useMemo(() => {
     const fromApi = (categoriesQuery.data ?? [])
       .map((c) => c.name)
@@ -140,7 +85,28 @@ const ExercisePage = () => {
     return fromApi.length ? fromApi : [...KNOWN_CATEGORIES]
   }, [categoriesQuery.data])
 
-  const [records, setRecords] = useState<ExerciseRecord[]>(() => initialRecords)
+  const [records, setRecords] = useState<ExerciseRecord[]>([])
+
+  useEffect(() => {
+    const rows = recordsQuery.data
+    if (!rows) return
+    const mapped: ExerciseRecord[] = rows
+      .map((r) => {
+        const categoryName = (r.categoryName ?? "").trim()
+        if (!isExerciseCategory(categoryName)) return null
+        return {
+          id: `${r.recordId}`,
+          dateISO: r.recordDate.slice(0, 10),
+          category: categoryName,
+          primaryLabel: r.primaryLabel,
+          primaryValue: r.primaryValue,
+          secondaryLabel: r.secondaryLabel,
+          secondaryValue: r.secondaryValue,
+        }
+      })
+      .filter((x): x is ExerciseRecord => Boolean(x))
+    setRecords(mapped)
+  }, [recordsQuery.data])
 
   const mostRecent3Days = useMemo(() => {
     const unique = Array.from(new Set(records.map((r) => r.dateISO))).sort((a, b) =>
@@ -159,13 +125,27 @@ const ExercisePage = () => {
   const [draftCategory, setDraftCategory] = useState<ExerciseCategory>("Running")
   const [draftPrimaryValue, setDraftPrimaryValue] = useState("")
   const [draftSecondaryValue, setDraftSecondaryValue] = useState("")
+  const [draftLiftingCategoryId, setDraftLiftingCategoryId] = useState<number | null>(null)
 
   const draftLabels = useMemo(() => labelsForCategory(draftCategory), [draftCategory])
+
+  const liftingCategoryOptions = useMemo(() => {
+    return (bestLiftsQuery.data ?? []).map((x) => ({
+      id: x.liftingCategoryId,
+      name: x.liftingCategoryName,
+    }))
+  }, [bestLiftsQuery.data])
 
   const draftCategoryId = useMemo(() => {
     const match = (categoriesQuery.data ?? []).find((c) => c.name === draftCategory)
     return match?.id ?? null
   }, [categoriesQuery.data, draftCategory])
+
+  const selectedLiftingCategoryName = useMemo(() => {
+    if (draftLiftingCategoryId == null) return ""
+    const match = liftingCategoryOptions.find((x) => x.id === draftLiftingCategoryId)
+    return match?.name ?? ""
+  }, [draftLiftingCategoryId, liftingCategoryOptions])
 
   const openCreate = () => {
     setEditingRecordId(null)
@@ -173,6 +153,7 @@ const ExercisePage = () => {
     setDraftCategory(categoryChips[0] ?? "Running")
     setDraftPrimaryValue("")
     setDraftSecondaryValue("")
+    setDraftLiftingCategoryId(null)
     setIsCreateOpen(true)
   }
 
@@ -333,7 +314,22 @@ const ExercisePage = () => {
                   {categoryChips.map((c) => (
                     <Button
                       key={c}
-                      onClick={() => setDraftCategory(c)}
+                      onClick={() => {
+                        setDraftCategory(c)
+                        if (c !== "Lifting") {
+                          setDraftLiftingCategoryId(null)
+                          setDraftPrimaryValue("")
+                        } else {
+                          const first = liftingCategoryOptions[0]
+                          if (first) {
+                            setDraftLiftingCategoryId(first.id)
+                            setDraftPrimaryValue(first.name)
+                          } else {
+                            setDraftLiftingCategoryId(null)
+                            setDraftPrimaryValue("")
+                          }
+                        }
+                      }}
                       bg={draftCategory === c ? "bg.muted" : "transparent"}
                       borderColor={draftCategory === c ? "fg.muted" : undefined}
                     >
@@ -347,22 +343,45 @@ const ExercisePage = () => {
                 <Text color="fg.muted" fontSize="xs" fontWeight="medium" letterSpacing="0.08em">
                   {draftLabels.primaryLabel.toUpperCase()}
                 </Text>
-                <Input
-                  mt={2}
-                  value={draftPrimaryValue}
-                  onChange={(e) => setDraftPrimaryValue(e.target.value)}
-                  placeholder={
-                    draftCategory === "Running"
-                      ? "e.g. 6200"
-                      : draftCategory === "Bike"
-                        ? "e.g. 12.4"
-                        : draftCategory === "Lifting"
-                          ? "e.g. Chest / Back"
+                {draftCategory === "Lifting" ? (
+                  <Box mt={2}>
+                    <ButtonGroup size="sm" variant="outline" flexWrap="wrap" gap={2}>
+                      {liftingCategoryOptions.map((opt) => (
+                        <Button
+                          key={opt.id}
+                          onClick={() => {
+                            setDraftLiftingCategoryId(opt.id)
+                            setDraftPrimaryValue(opt.name)
+                          }}
+                          bg={draftLiftingCategoryId === opt.id ? "bg.muted" : "transparent"}
+                          borderColor={draftLiftingCategoryId === opt.id ? "fg.muted" : undefined}
+                        >
+                          {opt.name}
+                        </Button>
+                      ))}
+                    </ButtonGroup>
+                    {liftingCategoryOptions.length === 0 && (
+                      <Text color="fg.muted" fontSize="sm" mt={2}>
+                        No muscle groups found. Run the lifting categories seed script first.
+                      </Text>
+                    )}
+                  </Box>
+                ) : (
+                  <Input
+                    mt={2}
+                    value={draftPrimaryValue}
+                    onChange={(e) => setDraftPrimaryValue(e.target.value)}
+                    placeholder={
+                      draftCategory === "Running"
+                        ? "e.g. 6200"
+                        : draftCategory === "Bike"
+                          ? "e.g. 12.4"
                           : "e.g. 45"
-                  }
-                  bg="bg.muted"
-                  borderRadius="xl"
-                />
+                    }
+                    bg="bg.muted"
+                    borderRadius="xl"
+                  />
+                )}
               </Box>
 
               <Box>
@@ -387,8 +406,11 @@ const ExercisePage = () => {
               <Button
                 onClick={() => {
                   const dateISO = draftDateISO.trim()
-                  const primaryValue = draftPrimaryValue.trim()
                   const secondaryValue = draftSecondaryValue.trim()
+                  const primaryValue =
+                    draftCategory === "Lifting"
+                      ? selectedLiftingCategoryName.trim()
+                      : draftPrimaryValue.trim()
                   if (!dateISO || !primaryValue || !secondaryValue) return
 
                   const { primaryLabel, secondaryLabel } = labelsForCategory(draftCategory)
@@ -416,6 +438,7 @@ const ExercisePage = () => {
                       {
                         categoryId: draftCategoryId,
                         recordDate: `${dateISO}T00:00:00`,
+                        liftingCategoryId: draftCategory === "Lifting" ? draftLiftingCategoryId : null,
                         primaryLabel,
                         primaryValue,
                         secondaryLabel,
@@ -445,9 +468,11 @@ const ExercisePage = () => {
                 }}
                 disabled={
                   !draftDateISO.trim() ||
-                  !draftPrimaryValue.trim() ||
+                  (draftCategory === "Lifting"
+                    ? !selectedLiftingCategoryName.trim()
+                    : !draftPrimaryValue.trim()) ||
                   !draftSecondaryValue.trim() ||
-                  (!editingRecordId && !draftCategoryId)
+                  (!editingRecordId && (!draftCategoryId || (draftCategory === "Lifting" && !draftLiftingCategoryId)))
                 }
               >
                 {editingRecordId ? "Save changes" : "Create record"}
