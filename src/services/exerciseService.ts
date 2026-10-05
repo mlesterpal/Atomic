@@ -1,4 +1,5 @@
 import type { ExerciseCategory } from "../entities/response/ExerciseCategory"
+import type { BestExerciseRecord } from "../entities/response/BestExerciseRecord"
 import { axiosInstance } from "./apiClient"
 
 export const getAllExerciseCategories = async (): Promise<ExerciseCategory[]> => {
@@ -18,5 +19,10 @@ export type AddExerciseRecordRequest = {
 export const addExerciseRecord = async (payload: AddExerciseRecordRequest): Promise<number> => {
   const response = await axiosInstance.post<{ id: number }>("/exercise/record", payload)
   return response.data.id
+}
+
+export const getBestExerciseRecords = async (): Promise<BestExerciseRecord[]> => {
+  const response = await axiosInstance.get<BestExerciseRecord[]>("/exercise/best-records")
+  return response.data
 }
 
